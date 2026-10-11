@@ -53,6 +53,32 @@ npm run build
 npm run server            # 访问 http://localhost:3000
 ```
 
+### 一键启动（推荐给非开发者）
+
+```bash
+npm run start             # 等价于 node scripts/launch.mjs
+```
+
+Windows 下也可直接双击项目根目录的 **`启动.cmd`**（发行包内已自带 Node 运行时与依赖，
+双击 `启动.cmd` 或桌面快捷方式即可）。
+
+启动器行为：
+
+1. 若目标端口已有本服务在运行 → 只打开控制台，不重复启动；
+2. 自检 `node_modules` / `tsx` / `dist`，缺失时给出可操作提示；
+3. 启动服务端，轮询 `/api/health` 就绪后**自动打开管理控制台**；
+4. `Ctrl+C` 或关闭窗口即停止服务。
+
+可选环境变量（`cmd` 下用 `set` 前缀）：
+
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `PORT` | `3000` | 服务端口，如 `set PORT=3100 && 启动.cmd` |
+| `NO_OPEN` | 未设置 | 设为 `1` 时不自动打开浏览器 |
+
+> 发行包目录结构：`启动.cmd` + `runtime\node\`（便携运行时）+ `node_modules\` + `dist\` + `server\`/`src\` 源码 + `docs\`。
+> 首次启动会以空数据库初始化（`data/chat.db`），不会携带任何历史对话或密钥。
+
 ---
 
 ## 接入微信公众号
