@@ -112,6 +112,16 @@
 | D4 | 仓库文件树抽查 | GitHub API `git/trees/main?recursive=1` | 无敏感路径；文件数与本地 `git ls-files` 一致 |
 | D5 | 克隆复现（可选但建议） | 临时目录 `git clone` → `npm install` → `npm run build` | 构建通过，证明仓库自洽 |
 
+### 提交 D：`docs: 回填发布验证证据并校正文件清单`
+
+| # | 动作 | 命令 | 验证 |
+| --- | --- | --- | --- |
+| E1 | 回填本计划附 A 证据表、勾选附 C 决策项 | 本文件 | 证据与实测输出一致 |
+| E2 | 校正计划 `2026-10-11-01` 的文件计数 | 计划 01 §2 | 与 `git ls-files`（47）一致 |
+| E3 | 提交并推送 | `git commit -F` + `git push` | `git status` 干净、`origin/main` sha 更新 |
+
+> 提交 D 属于本计划的收尾步骤（其工作内容即附 A 的「回填」），故不另立计划文档。
+
 ### 初始化与身份（仅执行一次）
 
 | # | 动作 | 命令 | 说明 |
@@ -182,16 +192,28 @@ npm run build                                           # 期望：exit 0
 
 ---
 
-## 附 A. 验证证据（推送完成后回填）
+## 附 A. 验证证据（已回填 · 2026-10-11 实测）
 
 | 验证项 | 命令 / 操作 | 结果 |
 | --- | --- | --- |
-| 提交前密钥扫描 | `git grep --cached` 模式匹配 | 待执行 |
-| 入库清单复核 | `git ls-files` | 待执行 |
-| 远端 sha 一致性 | `git ls-remote` vs `git rev-parse HEAD` | 待执行 |
-| 远端文件树抽查 | GitHub API trees | 待执行 |
-| 干净克隆构建 | `git clone` + `npm run build` | 待执行 |
-| 端到端回归 | `node scripts/verify-wechat.mjs` | 待执行 |
+| 提交前密钥扫描 | 全仓模式扫描 `sk-*` / `ghp_*` / `AKIA*` / `xox[bp]-` / 私钥头 | **无真实命中**（仅 `.env.example` 占位符）✅ |
+| `.gitignore` 生效 | `git check-ignore -v node_modules dist data .env .codebuddy/settings.local.json` | 5 项全部命中忽略规则 ✅ |
+| 入库清单复核 | `git status --porcelain -uall` | **47 项**，敏感/冗余路径排查 **无命中** ✅ |
+| 提交历史 | `git log --oneline --shortstat` | 3 个提交：`3990f49`(1 文件) / `a3c2f81`(44 文件) / `4bcb5dd`(2 文件) ✅ |
+| 远端 sha 一致性 | `git rev-parse HEAD` vs `git ls-remote origin refs/heads/main` | **均为 `4bcb5dda4cc049b758a0e4797480610a370e8ef1`** ✅ |
+| 远端文件树抽查 | GitHub API `git/trees/main?recursive=1` | blob **47** 个 = 本地入库数；无 `node_modules`/`dist`/`data`/`.env`/`*.db` ✅ |
+| 关键文件存在性 | 同一 API 抽查 | `README.md`/`package.json`/`.gitignore`/`.env.example`/`scripts/verify-wechat.mjs`/`server/index.ts`/`src/pages/DebugPage.tsx` 全部存在 ✅ |
+| 干净克隆构建 | `git clone --depth 1` + `npm run build` | `tsc -b` 通过、`✓ built in 2.91s`、exit **0** ✅ |
+| 克隆内 `.gitignore` 生效 | 构建后 `git status --short` | **clean**（`dist/` 3 个产物被正确忽略）✅ |
+| 推送结果 | `git push -u origin main` | `* [new branch] main -> main`，已设置上游跟踪 ✅ |
+| 端到端回归（推送前） | `npm run build` + `node scripts/verify-wechat.mjs` | 构建 exit 0；冒烟 **31 项通过 / 0 失败** ✅ |
+
+**环境实测值**
+
+- Git：`2.55.0.windows.5`（`C:\Program Files\Git\cmd\git.exe`，winget 安装，需管理员确认）
+- 凭据：`credential.helper=manager`（Git Credential Manager 浏览器授权，未使用 PAT）
+- 作者：`zhoulianghao000-web <336448081+zhoulianghao000-web@users.noreply.github.com>`（仅本仓库配置，未改动全局）
+- `core.autocrlf=true` → 提交时出现 `LF will be replaced by CRLF` 提示（见附 D）
 
 ## 附 B. 提交信息建议
 
@@ -234,10 +256,19 @@ chore: 发布前加固 gitignore 与发布计划
 ref: docs/commits/2026-10-11-02-github-publish.md
 ```
 
-## 附 C. 待你确认的决策项
+## 附 C. 决策项（已确认并执行）
 
-- [ ] **D1** 是否批准安装 Git（`winget install --id Git.Git -e --source winget`）？
-- [ ] **D2** 提交作者 `user.name` 与 `user.email`（建议 `336448081+zhoulianghao000-web@users.noreply.github.com`）
-- [ ] **D3** 是否接受首次推送由凭据管理器弹浏览器授权（替代在对话中传 PAT）？
-- [ ] **D4** 确认可将本项目完整公开（仓库当前为 public）
-- [ ] **D5** 是否按 §3 拆分为 3 个提交（推荐），或合并为 1 个初始提交
+| # | 决策项 | 结论 | 执行结果 |
+| --- | --- | --- | --- |
+| D1 | 是否批准安装 Git | ✅ 批准 | `winget install --id Git.Git -e` → 2.55.0.windows.5 |
+| D2 | 提交作者身份 | ✅ 用 GitHub noreply 邮箱 | 仅本仓库：`user.name=zhoulianghao000-web`、`user.email=336448081+zhoulianghao000-web@users.noreply.github.com` |
+| D3 | 推送鉴权方式 | ✅ 凭据管理器浏览器授权 | `credential.helper=manager`，**全程未使用/未记录 PAT** |
+| D4 | 是否可公开 | ✅ 确认可公开 | 仓库保持 `public` |
+| D5 | 提交粒度 | ✅ 拆 3 个提交 | `3990f49` / `a3c2f81` / `4bcb5dd`（另追加收尾提交 D 回填证据） |
+
+## 附 D. 遗留 TODO（转入后续提交）
+
+- [ ] **新增 `.gitattributes`**：`core.autocrlf=true` 导致提交时出现 LF→CRLF 提示；建议加 `* text=auto eol=lf` 统一跨平台行尾，避免后续 diff 噪音（属独立工程提交，本次未做以保持已批准的提交范围）
+- [ ] 计划 01 的文件计数已在本次提交 D 中校正（原写 45，实际 47）
+- [ ] 移除已无引用的 `tdesign-react`、`@tdesign-react/chat`、`tdesign-icons-react` 及其 `tailwind.config.js` 颜色别名
+- [ ] 微信「安全模式」EncodingAESKey 解密；多模态消息处理；去重缓存与 `access_token` 迁移至 Redis；管理台登录态
