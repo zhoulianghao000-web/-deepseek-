@@ -55,10 +55,12 @@ log(`Node 运行时: ${process.version}  (${process.execPath})`);
 log(`服务端口   : ${port}`);
 
 // 1) 已有实例：直接打开控制台，避免端口冲突
+//    退出码 3 = 「无需启动，已有实例」，供 启动.cmd 区分并自动关闭窗口
 if (await healthOk()) {
   log(`检测到服务已在运行：${url}`);
+  log('无需重复启动，正在打开管理控制台，本窗口将自动关闭。');
   openBrowser();
-  process.exit(0);
+  process.exit(3);
 }
 
 // 2) 运行前置条件自检
@@ -93,11 +95,14 @@ const child = spawn(process.execPath, [tsxCli, path.join(root, 'server', 'index.
 });
 
 // 4) 就绪后打开浏览器
-let opened = false;
+//    becameReady 用于区分「启动失败」与「启动成功后被人为停止」：
+//    一旦探测到健康实例，此后的任何退出都视为「停止」（退出码 0），
+//    否则在就绪前退出才判定为失败（退出码 1）。
+let becameReady = false;
 const poller = setInterval(async () => {
-  if (opened || child.exitCode !== null) return;
+  if (becameReady || child.exitCode !== null) return;
   if (await healthOk()) {
-    opened = true;
+    becameReady = true;
     clearInterval(poller);
     log('');
     log(`✅ 服务已就绪：${url}`);
@@ -107,10 +112,7 @@ const poller = setInterval(async () => {
 }, 700);
 
 const giveUp = setTimeout(() => {
-  if (!opened) {
-    clearInterval(poller);
-    warn(`等待服务就绪超时（60s），请手动访问 ${url} 并检查上方日志。`);
-  }
+  if (!becameReady) warn(`等待服务就绪超时（60s），请手动访问 ${url} 并检查上方日志。`);
 }, 60_000);
 
 // 5) 信号转发
@@ -123,5 +125,11 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 child.on('exit', (code) => {
   clearInterval(poller);
   clearTimeout(giveUp);
-  process.exit(code ?? 0);
+  if (becameReady) {
+    // 服务曾正常运行 → 属于「停止」，不是失败（避免正常停止也被报成启动失败）
+    process.exit(0);
+  }
+  console.error('');
+  console.error(`[失败] 服务在就绪前退出（退出代码 ${code ?? 'unknown'}），请查看上方日志。`);
+  process.exit(1);
 });

@@ -32,10 +32,36 @@ if not defined NODE_EXE (
 )
 
 echo 使用 Node: %NODE_EXE%
+echo.
 "%NODE_EXE%" "%~dp0scripts\launch.mjs"
-
 set "EXITCODE=%ERRORLEVEL%"
 echo.
-if "%EXITCODE%"=="0" (echo 服务已正常退出。) else (echo 服务异常退出，代码 %EXITCODE%。)
+
+rem 按退出码分流：仅失败路径才暂停等待（避免出现「Press any key to continue」时不知输入什么）
+if "%EXITCODE%"=="3" goto :already_running
+if "%EXITCODE%"=="0" goto :stopped
+goto :failed
+
+:already_running
+echo 服务已在运行，管理控制台已打开。本窗口 3 秒后自动关闭。
+rem 使用 ping 做延时：timeout 在 stdin 被重定向时会报错
+ping -n 4 127.0.0.1 >nul
+goto :end
+
+:stopped
+echo 服务已停止。本窗口 3 秒后自动关闭。
+ping -n 4 127.0.0.1 >nul
+goto :end
+
+:failed
+echo [失败] 启动未成功。请查看上方日志定位原因：
+echo        缺少依赖 → 执行 npm install；
+echo        缺少 Node → 安装 Node 18+ 或放置 runtime\node\；
+echo        端口被占 → 结束占用 3000 端口的进程，或 set PORT=3100 后重试。
+echo.
 pause
-endlocal
+goto :end
+
+:end
+rem 透传语义化退出码（3=已有实例 0=正常停止 其他=失败）；先展开变量再 endlocal
+endlocal & exit /b %EXITCODE%
